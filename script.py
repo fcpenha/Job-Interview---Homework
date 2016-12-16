@@ -54,7 +54,7 @@ lst['total'] = np.asarray([
 # restaurants may be packed for lunch on Mondays,
 # while the same logic does not apply for a
 # restaurant in a bohemian area. This way, each
-# restaurant may present unique trends. We choose to
+# restaurant may present unique trends. I choose to
 # focus on the trend presented in the sample document.
 
 
@@ -86,7 +86,11 @@ for w in isoweek:
 
 # List mean based on 2 week data
 # in units of thousands
-for w in isoweek:
+
+# Monday appears only once
+lst['mean', 1] = lst['total', 1]
+
+for w in range(2, 8):
     lst['mean', w] = lst['total', w] / 2.
 
 
@@ -94,14 +98,22 @@ for w in isoweek:
 # %%% FIT %%%
 # %%%%%%%%%%%
 
-# Model: 5th order polynomial for 7 weekdays
-# Model must be at most 1 order lower than number of data points
+# The fit will exclude Sunday, because the restaurant is never opened
+isoweek = isoweek[:-1]
+
+# Model: 4th order polynomial for 6 weekdays
+# Model must be at least 1 order lower than number of data points
 # For example, a straight line (order 1) can fit two points or more
 
 
-def polyn(t, c0, c1, c2, c3, c4, c5):
-    return c0 + c1 * t + c2 * t ** 2 + c3 * t ** 3 + c4 * t ** 4 + c5 * t ** 5
-
+def polyn(t, c0, c1, c2, c3, c4):
+    return (
+        c0 +
+        c1 * t +
+        c2 * t ** 2 +
+        c3 * t ** 3 +
+        c4 * t ** 4
+    )
 
 model = lmfit.Model(polyn, independent_vars=['t'])
 
@@ -114,8 +126,7 @@ fit_result = model.fit(
     c1=lmfit.Parameter(value=0., min=cmin, max=cmax),
     c2=lmfit.Parameter(value=0., min=cmin, max=cmax),
     c3=lmfit.Parameter(value=0., min=cmin, max=cmax),
-    c4=lmfit.Parameter(value=0., min=cmin, max=cmax),
-    c5=lmfit.Parameter(value=0., min=cmin, max=cmax)
+    c4=lmfit.Parameter(value=0., min=cmin, max=cmax)
 )
 
 # 1-sigma limits in "lmfit" may be obtained with
@@ -127,6 +138,7 @@ fit_result = model.fit(
 # Covariance matrix
 cov = fit_result.covar
 
+
 # %%%%%%%%%%%%%%%%%%%%%%
 # %%% COMPUTE ERRORS %%%
 # %%%%%%%%%%%%%%%%%%%%%%
@@ -137,8 +149,8 @@ cov = fit_result.covar
 def error(t):
     return np.sum(np.asarray([[
                                   cov[i, j] * (t ** i) * (t ** j)
-                                  for i in range(0, 6)]
-                              for j in range(0, 6)]))
+                                  for i in range(0, cov.shape[0])]
+                              for j in range(0, cov.shape[0])]))
 
 
 # Vectorize function
@@ -153,39 +165,39 @@ plt.scatter(isoweek,
             marker='.', s=300)
 
 # Best-fit
-plt.plot(np.linspace(1., 7., num=50),
-         polyn(t=np.linspace(1., 7., num=50), **fit_result.values),
+plt.plot(isoweek,
+         polyn(t=isoweek, **fit_result.values),
          color='red', linewidth=3, label=r'Best-fit')
 
 # Upper 1-sigma limit
-plt.plot(np.linspace(1., 7., num=50),
-         polyn(t=np.linspace(1., 7., num=50), **fit_result.values) +
-         vec_error(t=np.linspace(1., 7., num=50)),
-         color='darkorange', linewidth=3)
+plt.plot(isoweek,
+         polyn(t=isoweek, **fit_result.values) +
+         vec_error(t=isoweek),
+         ls='--', color='darkorange', linewidth=3)
 
-# ,ower 1-sigma limit
-plt.plot(np.linspace(1., 7., num=50),
-         polyn(t=np.linspace(1., 7., num=50), **fit_result.values) -
-         vec_error(t=np.linspace(1., 7., num=50)),
-         color='darkorange', linewidth=3)
+# Lower 1-sigma limit
+plt.plot(isoweek,
+         polyn(t=isoweek, **fit_result.values) -
+         vec_error(t=isoweek),
+         ls='--', color='darkorange', linewidth=3)
 
 # 68.3 confidence band
-plt.fill_between(np.linspace(1., 7., num=50),
-                 polyn(t=np.linspace(1., 7., num=50), **fit_result.values) +
-                 vec_error(t=np.linspace(1., 7., num=50)),
-                 polyn(t=np.linspace(1., 7., num=50), **fit_result.values) -
-                 vec_error(t=np.linspace(1., 7., num=50)),
+plt.fill_between(isoweek,
+                 polyn(t=isoweek, **fit_result.values) +
+                 vec_error(t=isoweek),
+                 polyn(t=isoweek, **fit_result.values) -
+                 vec_error(t=isoweek),
                  facecolor='orange', alpha=0.5, linewidth=0.0, label=r'68.3\% confidence')
 
-plt.xlim([1, 7])
+plt.xlim([1, 6])
 plt.ylim([0, 20])
 
 plt.xlabel(r'Iso Week Date')
 plt.ylabel(r'(2-week Mean) / 1000')
 
 # Show also weekday names
-plt.xticks([1, 2, 3, 4, 5, 6, 7],
-           ['1\n Mon', '2\n Tue', '3\n Wed', '4\n Thu', '5\n Fri', '6\n Sat', '7\n Sun'])
+plt.xticks([1, 2, 3, 4, 5, 6],
+           ['1\n Mon', '2\n Tue', '3\n Wed', '4\n Thu', '5\n Fri', '6\n Sat'])
 
 plt.legend(loc='upper right', frameon=True, numpoints=1, ncol=1)
 
