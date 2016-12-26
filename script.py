@@ -147,10 +147,10 @@ cov = fit_result.covar
 
 
 def error(t):
-    return np.sum(np.asarray([[
+    return np.sqrt(np.sum(np.asarray([[
                                   cov[i, j] * (t ** i) * (t ** j)
                                   for i in range(0, cov.shape[0])]
-                              for j in range(0, cov.shape[0])]))
+                              for j in range(0, cov.shape[0])])))
 
 
 # Vectorize function
